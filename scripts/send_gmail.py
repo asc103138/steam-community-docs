@@ -123,18 +123,29 @@ def send_via_smtp(sender, app_password, recipient, subject, body, attachment_pat
 def open_gmail_web(recipient, subject, body, open_dir=None):
     """
     Opens Gmail Compose web page in default browser with pre-filled To/Subject/Body.
-    Also opens Finder to reveal attachments.
+    Cross-platform support for macOS, Windows 11/10, and Linux.
     """
+    import webbrowser
     encoded_to = urllib.parse.quote(recipient)
     encoded_su = urllib.parse.quote(subject)
     encoded_body = urllib.parse.quote(body)
     
     url = f"https://mail.google.com/mail/?view=cm&fs=1&to={encoded_to}&su={encoded_su}&body={encoded_body}"
-    subprocess.run(['open', url])
+    webbrowser.open(url)
     
     if open_dir and os.path.exists(open_dir):
-        subprocess.run(['open', open_dir])
+        abs_dir = os.path.abspath(open_dir)
+        try:
+            if sys.platform == 'win32':
+                os.startfile(abs_dir)
+            elif sys.platform == 'darwin':
+                subprocess.run(['open', abs_dir])
+            else:
+                subprocess.run(['xdg-open', abs_dir])
+        except Exception as e:
+            print(f"Warning: Could not open directory {abs_dir}: {e}", file=sys.stderr)
     return True
+
 
 if __name__ == '__main__':
     import argparse

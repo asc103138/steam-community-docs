@@ -56,3 +56,27 @@ python3 scripts/generate_docs.py \
   --lecturer "王怡婷" \
   --photos-dir "./photos"
 ```
+
+---
+
+## 💻 跨裝置與跨平台設定（Windows 11 / macOS）
+
+當您在另一台電腦（例如學校或家中的 Windows 11 電腦）時，可直接從本 Git 儲存庫快速同步並啟用技能：
+
+### 🪟 Windows 11 快速設定
+1. 將本專案 Clone 或下載解壓縮至 Windows 電腦：
+   ```cmd
+   git clone <本專案Repo網址>
+   cd steam社群申請
+   ```
+2. 直接滑鼠雙擊 **`setup.bat`**（或於命令提示字元執行 `python scripts\install_skill.py`）。
+3. 腳本會自動檢查 Python 套件、將 Skill 同步至 Windows 之 `%USERPROFILE%\.gemini\config\skills\steam-community-docs`，完成後即可在 Windows 11 上的 Antigravity 直接使用！
+
+### 🍏 macOS 快速設定
+1. 在終端機執行：
+   ```bash
+   ./setup.sh
+   # 或 python3 scripts/install_skill.py
+   ```
+2. 系統自動完成套件檢查與 `~/.gemini/config/skills/steam-community-docs` 配置。
+

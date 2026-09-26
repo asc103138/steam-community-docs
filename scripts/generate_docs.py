@@ -118,47 +118,98 @@ def num_to_chinese_digit(num):
     digits = {'0': '零', '1': '壹', '2': '貳', '3': '參', '4': '肆', '5': '伍', '6': '陸', '7': '柒', '8': '捌', '9': '玖'}
     return digits.get(str(num), str(num))
 
+from docx.oxml.ns import qn
+
+def apply_font_zh(run, font_name="標楷體", font_en="Times New Roman", size_pt=12):
+    """
+    Applies Chinese and English font settings compatible with both Mac and Windows Word.
+    Injects w:eastAsia for Windows Word standard font rendering.
+    """
+    run.font.name = font_en
+    if size_pt:
+        run.font.size = Pt(size_pt)
+    try:
+        rPr = run._r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        rFonts.set(qn('w:eastAsia'), font_name)
+        rFonts.set(qn('w:ascii'), font_en)
+        rFonts.set(qn('w:hAnsi'), font_en)
+    except Exception:
+        pass
+
 def convert_docx_to_pdf(docx_path, pdf_path):
     """
-    Converts a .docx to .pdf using textutil + Google Chrome headless.
+    Converts a .docx to .pdf with cross-platform support (macOS & Windows 11/10).
     """
     docx_abs = os.path.abspath(docx_path)
     pdf_abs = os.path.abspath(pdf_path)
-    tmp_html = docx_abs + '.tmp.html'
 
-    chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    
-    # 1. docx -> html
-    try:
-        res = subprocess.run(['textutil', '-convert', 'html', docx_abs, '-output', tmp_html], 
-                             capture_output=True, text=True, timeout=10)
-        if res.returncode == 0 and os.path.exists(tmp_html) and os.path.exists(chrome_path):
-            # 2. html -> pdf via chrome
-            c_res = subprocess.run([
-                chrome_path,
-                '--headless',
-                '--disable-gpu',
-                f'--print-to-pdf={pdf_abs}',
-                tmp_html
-            ], capture_output=True, text=True, timeout=15)
-            if os.path.exists(tmp_html):
-                os.remove(tmp_html)
+    # ==================== Windows 11 / 10 ====================
+    if sys.platform == 'win32':
+        # 1. Try win32com (Word COM automation)
+        try:
+            import win32com.client
+            import pythoncom
+            pythoncom.CoInitialize()
+            word = win32com.client.DispatchEx("Word.Application")
+            word.Visible = False
+            doc = word.Documents.Open(docx_abs)
+            doc.SaveAs(pdf_abs, FileFormat=17) # wdFormatPDF = 17
+            doc.Close(False)
+            word.Quit()
             if os.path.exists(pdf_abs) and os.path.getsize(pdf_abs) > 1000:
                 return True
-    except Exception as e:
-        print(f"Warning: PDF conversion via Chrome failed: {e}", file=sys.stderr)
-    
-    if os.path.exists(tmp_html):
-        try: os.remove(tmp_html)
-        except: pass
+        except Exception:
+            pass
 
-    # Fallback to soffice / libreoffice if installed
-    for bin_name in ['soffice', 'libreoffice']:
-        if shutil.which(bin_name):
+        # 2. Try docx2pdf package
+        try:
+            import docx2pdf
+            docx2pdf.convert(docx_abs, pdf_abs)
+            if os.path.exists(pdf_abs) and os.path.getsize(pdf_abs) > 1000:
+                return True
+        except Exception:
+            pass
+
+    # ==================== macOS ====================
+    elif sys.platform == 'darwin':
+        tmp_html = docx_abs + '.tmp.html'
+        chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        try:
+            res = subprocess.run(['textutil', '-convert', 'html', docx_abs, '-output', tmp_html], 
+                                 capture_output=True, text=True, timeout=10)
+            if res.returncode == 0 and os.path.exists(tmp_html) and os.path.exists(chrome_path):
+                subprocess.run([
+                    chrome_path,
+                    '--headless',
+                    '--disable-gpu',
+                    f'--print-to-pdf={pdf_abs}',
+                    tmp_html
+                ], capture_output=True, text=True, timeout=15)
+                if os.path.exists(tmp_html):
+                    os.remove(tmp_html)
+                if os.path.exists(pdf_abs) and os.path.getsize(pdf_abs) > 1000:
+                    return True
+        except Exception:
+            pass
+        if os.path.exists(tmp_html):
+            try: os.remove(tmp_html)
+            except: pass
+
+    # ==================== Universal: LibreOffice / soffice ====================
+    candidate_bins = ['soffice', 'libreoffice']
+    if sys.platform == 'win32':
+        candidate_bins.extend([
+            r"C:\Program Files\LibreOffice\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+        ])
+    for bin_cand in candidate_bins:
+        bin_path = bin_cand if os.path.isabs(bin_cand) and os.path.exists(bin_cand) else shutil.which(bin_cand)
+        if bin_path:
             try:
-                subprocess.run([bin_name, '--headless', '--convert-to', 'pdf', docx_abs, '--outdir', os.path.dirname(pdf_abs)],
-                               capture_output=True, timeout=20)
-                if os.path.exists(pdf_abs):
+                subprocess.run([bin_path, '--headless', '--convert-to', 'pdf', docx_abs, '--outdir', os.path.dirname(pdf_abs)],
+                               capture_output=True, timeout=25)
+                if os.path.exists(pdf_abs) and os.path.getsize(pdf_abs) > 1000:
                     return True
             except:
                 pass
@@ -284,7 +335,7 @@ def generate_documents(
         for cell in row.cells:
             for p in cell.paragraphs:
                 for r in p.runs:
-                    r.font.name = '標楷體'
+                    apply_font_zh(r, font_name='標楷體', size_pt=12)
 
     # Table 1: Photo gallery
     if len(doc_成果.tables) > 1:
@@ -371,8 +422,7 @@ def generate_documents(
                         p = cell_cap.paragraphs[0]
                         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                         for r in p.runs:
-                            r.font.name = '標楷體'
-                            r.font.size = Pt(11)
+                            apply_font_zh(r, font_name='標楷體', size_pt=11)
 
     out_成果_docx = os.path.join(output_dir, f"{mmdd}成果表.docx")
     doc_成果.save(out_成果_docx)
@@ -399,9 +449,9 @@ def generate_documents(
         # Style Header
         p_hdr = t_sign.rows[0].cells[0].paragraphs[0]
         for r in p_hdr.runs:
-            r.font.name = '標楷體'
+            apply_font_zh(r, font_name='標楷體', size_pt=14)
             r.font.bold = True
-            r.font.size = Pt(14)
+
         
         # Build member list:
         # If lecturer is specified, that member gets title "講師" and goes to row 1
@@ -462,8 +512,7 @@ def generate_documents(
                 for p in cell.paragraphs:
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     for r in p.runs:
-                        r.font.name = '標楷體'
-                        r.font.size = Pt(12)
+                        apply_font_zh(r, font_name='標楷體', size_pt=12)
 
         out_簽到_docx = os.path.join(output_dir, f"{mmdd}簽到表.docx")
         doc_簽到.save(out_簽到_docx)
@@ -515,7 +564,8 @@ def generate_documents(
                 for cell in row.cells:
                     for p in cell.paragraphs:
                         for r in p.runs:
-                            r.font.name = '標楷體'
+                            apply_font_zh(r, font_name='標楷體', size_pt=12)
+
 
             out_領據_docx = os.path.join(output_dir, f"{mmdd}領據.docx")
             doc_領據.save(out_領據_docx)
