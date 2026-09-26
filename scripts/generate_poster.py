@@ -40,7 +40,7 @@ def generate_poster_html(
     target="本校STEAM教師社群成員與觀課教師",
     agenda=None,
     objectives=None,
-    photo_paths=None
+    hero_image_path=None
 ):
     if not agenda:
         agenda = [
@@ -58,13 +58,20 @@ def generate_poster_html(
             "促進社群教師觀課與議課專業對話，共同成長。"
         ]
 
-    # Convert photos to base64
-    b64_photos = []
-    if photo_paths:
-        for p in photo_paths[:2]:
-            b64 = img_to_base64(p)
-            if b64:
-                b64_photos.append(b64)
+    # Convert hero image to base64
+    b64_hero = ""
+    if hero_image_path and os.path.exists(hero_image_path):
+        b64_hero = img_to_base64(hero_image_path)
+    else:
+        # Fallback candidate search
+        default_candidates = [
+            os.path.join(PROJECT_DIR, 'references', 'assets', 'steam_hero_default.jpg'),
+            os.path.join(os.path.expanduser('~/.gemini/config/skills/steam-community-docs/references/assets'), 'steam_hero_default.jpg')
+        ]
+        for c in default_candidates:
+            if os.path.exists(c):
+                b64_hero = img_to_base64(c)
+                break
 
     agenda_rows_html = "".join([
         f"<tr><td class='time-col'>{t}</td><td class='desc-col'>{d}</td></tr>"
@@ -76,13 +83,14 @@ def generate_poster_html(
         for obj in objectives
     ])
 
-    photos_html = ""
-    if b64_photos:
-        photos_cards = "".join([
-            f"<div class='photo-frame'><img src='{b64}' alt='活動照片' /></div>"
-            for b64 in b64_photos
-        ])
-        photos_html = f"<div class='photos-container'>{photos_cards}</div>"
+    hero_html = ""
+    if b64_hero:
+        hero_html = f"""
+        <div class="hero-card">
+          <img class="hero-img" src="{b64_hero}" alt="STEAM 主題意象視覺圖" />
+          <div class="hero-badge">AI 跨領域教學意象設計</div>
+        </div>
+        """
 
     html = f"""<!DOCTYPE html>
 <html lang="zh-TW">
@@ -163,27 +171,39 @@ def generate_poster_html(
     box-shadow: 0 3px 8px rgba(245, 158, 11, 0.2);
   }}
 
-  /* Photos Section */
-  .photos-container {{
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-bottom: 22px;
-  }}
-  .photo-frame {{
-    width: 480px;
-    height: 310px;
+  /* Hero Illustration Section */
+  .hero-card {{
+    position: relative;
+    width: 1000px;
+    height: 400px;
+    margin: 14px auto 18px auto;
     background: #ffffff;
-    border-radius: 16px;
-    padding: 10px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 8px;
+    box-shadow: 0 10px 25px rgba(30, 58, 138, 0.15);
+    border: 1px solid #cbd5e1;
+    overflow: hidden;
   }}
-  .photo-frame img {{
+  .hero-img {{
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 10px;
+    border-radius: 14px;
+    display: block;
+  }}
+  .hero-badge {{
+    position: absolute;
+    bottom: 18px;
+    right: 20px;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }}
 
   /* Middle Grid */
@@ -316,7 +336,7 @@ def generate_poster_html(
       <h1 class="main-title"><span class="hl">{theme[:15]}</span>{theme[15:] if len(theme)>15 else ""}</h1>
       <div class="sub-title">⚙️ {subtheme} ⚙️</div>
       <div class="tagline-banner">💡 {tagline}</div>
-      {photos_html}
+      {hero_html}
     </div>
 
     <!-- Middle Grid -->
@@ -546,9 +566,10 @@ SESSION_PRESETS = {
     }
 }
 
-def generate_session_poster(session_num, date_str, time_str, activity_name, lecturer, photo_paths, output_png):
+def generate_session_poster(session_num, date_str, time_str, activity_name, lecturer, photo_paths=None, output_png=None, hero_image_path=None):
     """
     High-level API to generate session poster PNG.
+    Uses AI generated hero illustration image, completely omitting activity photos.
     """
     preset = SESSION_PRESETS.get(session_num, SESSION_PRESETS[1])
     theme = activity_name if activity_name else preset["theme"]
@@ -556,6 +577,18 @@ def generate_session_poster(session_num, date_str, time_str, activity_name, lect
     lec_str = f"{lecturer} 老師" if lecturer and not lecturer.endswith("老師") else (f"{preset['lecturer']} 老師" if not lecturer else lecturer)
     agenda = preset["agenda"]
     objectives = preset["objectives"]
+
+    # If hero_image_path not explicitly provided, look for default
+    if not hero_image_path:
+        default_candidates = [
+            os.path.join(os.path.dirname(output_png) if output_png else '.', '0926海報視覺圖.jpg'),
+            os.path.join(PROJECT_DIR, 'references', 'assets', 'steam_hero_default.jpg'),
+            os.path.join(os.path.expanduser('~/.gemini/config/skills/steam-community-docs/references/assets'), 'steam_hero_default.jpg'),
+        ]
+        for c in default_candidates:
+            if os.path.exists(c):
+                hero_image_path = c
+                break
 
     html = generate_poster_html(
         session_num=session_num or 1,
@@ -567,13 +600,13 @@ def generate_session_poster(session_num, date_str, time_str, activity_name, lect
         lecturer=lec_str,
         agenda=agenda,
         objectives=objectives,
-        photo_paths=photo_paths
+        hero_image_path=hero_image_path
     )
 
     return render_html_to_png(html, output_png)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="STEAM 社群活動海報生成工具")
+    parser = argparse.ArgumentParser(description="STEAM 社群活動海報生成工具 (AI 主題視覺版)")
     parser.add_argument('--session-num', type=int, default=6)
     parser.add_argument('--theme', default=None)
     parser.add_argument('--subtheme', default=None)
@@ -581,7 +614,7 @@ if __name__ == '__main__':
     parser.add_argument('--time', default="13:00 - 15:00")
     parser.add_argument('--location', default="臺中市梧棲區中正國民小學")
     parser.add_argument('--lecturer', default=None)
-    parser.add_argument('--photos', nargs='*')
+    parser.add_argument('--hero-image', default=None, help="Gemini 生成的 AI 主題視覺圖路徑")
     parser.add_argument('--output', required=True, help="輸出 PNG 路徑")
 
     args = parser.parse_args()
@@ -602,7 +635,7 @@ if __name__ == '__main__':
         lecturer=lecturer if lecturer.endswith("老師") else f"{lecturer} 老師",
         agenda=preset["agenda"],
         objectives=preset["objectives"],
-        photo_paths=args.photos
+        hero_image_path=args.hero_image
     )
 
     success = render_html_to_png(html, args.output)
@@ -610,4 +643,5 @@ if __name__ == '__main__':
         print(f"✅ 議程海報生成成功：{args.output}")
     else:
         print(f"❌ 議程海報生成失敗")
+
 

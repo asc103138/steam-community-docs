@@ -475,7 +475,6 @@ def generate_documents(
                     time_str=time_str,
                     activity_name=activity_name,
                     lecturer=lecturer,
-                    photo_paths=processed_photo_paths[:2] if processed_photo_paths else None,
                     output_png=target_poster_path
                 )
                 if p_success and os.path.exists(target_poster_path):
