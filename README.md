@@ -66,10 +66,11 @@ python3 scripts/generate_docs.py \
 ### 🪟 Windows 11 快速設定
 1. 將本專案 Clone 或下載解壓縮至 Windows 電腦：
    ```cmd
-   git clone <本專案Repo網址>
-   cd steam社群申請
+   git clone https://github.com/asc103138/steam-community-docs.git
+   cd steam-community-docs
    ```
 2. 直接滑鼠雙擊 **`setup.bat`**（或於命令提示字元執行 `python scripts\install_skill.py`）。
+
 3. 腳本會自動檢查 Python 套件、將 Skill 同步至 Windows 之 `%USERPROFILE%\.gemini\config\skills\steam-community-docs`，完成後即可在 Windows 11 上的 Antigravity 直接使用！
 
 ### 🍏 macOS 快速設定

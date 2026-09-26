@@ -5,7 +5,7 @@
 - **專案用途**：臺中市115年度推動校園STEAM教育實施計畫之社群活動成果表、簽到表、內聘講師領據自動化生成、圖文排版與雙格式（.docx / .pdf）歸檔
 - **主要工作目錄**：`/Users/tunyuan/Library/CloudStorage/GoogleDrive-asc103138@st.tc.edu.tw/我的雲端硬碟/steam社群申請`
 - **全域技能**：`~/.gemini/config/skills/steam-community-docs`
-- **GitHub Repo**：本機 Git 版本控制
+- **GitHub Repo**：https://github.com/asc103138/steam-community-docs
 
 ## Obsidian 關聯筆記
 - **Vault 路徑**：`/Users/tunyuan/opencode_0715`
