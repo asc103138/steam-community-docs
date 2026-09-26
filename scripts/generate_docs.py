@@ -549,6 +549,8 @@ def main():
     parser.add_argument('--captions', help="照片說明文字 (JSON 格式列表或文字)")
     parser.add_argument('--output-dir', help="輸出資料夾 (預設為 ./MMDD)")
     parser.add_argument('--skip-pdf', action='store_true', help="跳過轉存 PDF")
+    parser.add_argument('--send-email', action='store_true', help="直接發送成果信件至 tc.steam114@gmail.com")
+    parser.add_argument('--open-email', action='store_true', help="開啟瀏覽器 Gmail 撰寫視窗")
 
     args = parser.parse_args()
 
@@ -581,5 +583,46 @@ def main():
     for f in files:
         print(f"  - {f}")
 
+    # Build Email Preview
+    roc_year, month, day, mmdd, _ = parse_date(args.date)
+    date_str = f"{roc_year}年{month}月{day}日"
+    out_dir = args.output_dir or os.path.join(PROJECT_DIR, mmdd)
+    
+    # Attachments for email (成果表 and 簽到表 only, exclude 領據)
+    cg_files = [f for f in files if '成果' in f and f.endswith('.pdf')] or [f for f in files if '成果' in f and f.endswith('.docx')]
+    qd_files = [f for f in files if '簽到' in f and f.endswith('.pdf')] or [f for f in files if '簽到' in f and f.endswith('.docx')]
+    email_attachments = [os.path.basename(x) for x in (cg_files + qd_files)]
+
+    email_subject = f"【成果繳交】臺中市梧棲區中正國小「STEAM校內教師社群」{date_str}活動執行成果"
+    email_body = (
+        f"承辦人員您好：\n\n"
+        f"檢附本校「STEAM校內教師社群」{date_str}活動執行成果相關資料，包含：\n\n"
+        f"一、活動執行成果表\n"
+        f"二、活動簽到表\n\n"
+        f"敬請查收。\n\n"
+        f"若資料尚有需補充或修正之處，亦請不吝告知，謝謝。\n\n"
+        f"敬祝\n"
+        f"順心\n\n"
+        f"臺中市梧棲區中正國民小學 STEAM教師社群\n"
+        f"召集人：謝敦元 老師 敬上"
+    )
+
+    print("\n" + "=" * 65)
+    print("📧 【成果繳交信件預覽】")
+    print(f"收件者：tc.steam114@gmail.com")
+    print(f"主旨  ：{email_subject}")
+    print(f"附件  ：{email_attachments}")
+    print("-" * 65)
+    print(email_body)
+    print("=" * 65)
+
+    if args.send_email or args.open_email:
+        send_script = os.path.join(SCRIPT_DIR, 'send_gmail.py')
+        cmd = [sys.executable, send_script, '--dir', out_dir, '--date', f"{roc_year}.{month}.{day}"]
+        if args.open_email:
+            cmd.append('--open-web')
+        subprocess.run(cmd)
+
 if __name__ == '__main__':
     main()
+
