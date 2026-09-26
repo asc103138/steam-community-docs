@@ -173,6 +173,31 @@ def convert_docx_to_pdf(docx_path, pdf_path):
 
     # ==================== macOS ====================
     elif sys.platform == 'darwin':
+        # 1. Try Microsoft Word via AppleScript (highest quality, 100% faithful layout, multi-page & images)
+        osa_script = f'''tell application "Microsoft Word"
+            set docxPath to POSIX file "{docx_abs}"
+            set pdfPath to POSIX file "{pdf_abs}"
+            set openDoc to open file name docxPath without dialogs
+            save as openDoc file name pdfPath file format format PDF
+            close openDoc saving no
+        end tell'''
+        try:
+            subprocess.run(['osascript', '-e', osa_script], capture_output=True, timeout=25)
+            if os.path.exists(pdf_abs) and os.path.getsize(pdf_abs) > 1000:
+                return True
+        except Exception:
+            pass
+
+        # 2. Try docx2pdf package
+        try:
+            import docx2pdf
+            docx2pdf.convert(docx_abs, pdf_abs)
+            if os.path.exists(pdf_abs) and os.path.getsize(pdf_abs) > 1000:
+                return True
+        except Exception:
+            pass
+
+        # 3. Fallback: textutil + chrome headless
         tmp_html = docx_abs + '.tmp.html'
         chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
         try:
@@ -423,6 +448,72 @@ def generate_documents(
                         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                         for r in p.runs:
                             apply_font_zh(r, font_name='標楷體', size_pt=11)
+
+        # =====================================================================
+        # 1.1 自動生成議程海報並嵌入成果表附件區 (Table 1)
+        # =====================================================================
+        poster_path = None
+        try:
+            from generate_poster import generate_session_poster
+        except ImportError:
+            try:
+                import sys
+                sys.path.append(SCRIPT_DIR)
+                from generate_poster import generate_session_poster
+            except Exception:
+                generate_session_poster = None
+
+        poster_fn = f"{mmdd}議程海報.png"
+        target_poster_path = os.path.join(output_dir, poster_fn)
+
+        if generate_session_poster:
+            try:
+                date_for_poster = f"115年{month}月{day}日 ({weekday_str})"
+                p_success = generate_session_poster(
+                    session_num=session_num or 1,
+                    date_str=date_for_poster,
+                    time_str=time_str,
+                    activity_name=activity_name,
+                    lecturer=lecturer,
+                    photo_paths=processed_photo_paths[:2] if processed_photo_paths else None,
+                    output_png=target_poster_path
+                )
+                if p_success and os.path.exists(target_poster_path):
+                    poster_path = target_poster_path
+                    if target_poster_path not in created_files:
+                        created_files.append(target_poster_path)
+            except Exception as pe:
+                print(f"Warning: Poster generation error: {pe}", file=sys.stderr)
+
+        # Embed poster into Table 1
+        if poster_path and os.path.exists(poster_path):
+            other_attach_row_idx = None
+            for idx_r, row in enumerate(t1.rows):
+                if any("其他附件" in cell.text for cell in row.cells):
+                    other_attach_row_idx = idx_r
+                    break
+
+            if other_attach_row_idx is not None:
+                if other_attach_row_idx + 1 < len(t1.rows):
+                    poster_row = t1.rows[other_attach_row_idx + 1]
+                else:
+                    poster_row = t1.add_row()
+            else:
+                poster_row = t1.add_row()
+
+            if len(poster_row.cells) > 1:
+                first_cell = poster_row.cells[0]
+                for c in poster_row.cells[1:]:
+                    first_cell.merge(c)
+                target_cell = first_cell
+            else:
+                target_cell = poster_row.cells[0]
+
+            target_cell.text = ""
+            p = target_cell.paragraphs[0]
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run()
+            run.add_picture(poster_path, width=Cm(16.5))
 
     out_成果_docx = os.path.join(output_dir, f"{mmdd}成果表.docx")
     doc_成果.save(out_成果_docx)
