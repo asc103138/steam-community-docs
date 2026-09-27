@@ -88,6 +88,7 @@ python3 ~/.gemini/config/skills/steam-community-docs/scripts/generate_docs.py \
 ### Step 5｜信件預覽確認與 Gmail 寄送（寄至 tc.steam114@gmail.com）
 成果產生後，依規需於活動結束 2 週內將資料寄至承辦窗口：
 1. **對話中呈現信件內容確認（★★唯一確認硬卡點）**：
+   - **寄件者規定**：必須使用 `asc103138@st.tc.edu.tw` 帳號寄件。
    - **收件者**：`tc.steam114@gmail.com`
    - **信件主旨**：`【成果繳交】臺中市梧棲區中正國小「STEAM校內教師社群」115年X月X日活動執行成果`
    - **附件清單**：僅附《活動執行成果表》與《活動簽到表》（PDF/DOCX），**絕不可夾帶內部核銷領據**。
@@ -110,12 +111,15 @@ python3 ~/.gemini/config/skills/steam-community-docs/scripts/generate_docs.py \
      臺中市梧棲區中正國民小學 STEAM教師社群
      召集人：謝敦元 老師 敬上
      ```
-2. **使用者確認後執行**：
+2. **使用者確認後執行（含登入確認流程）**：
    - 經使用者在對話中回覆「確認寄送」或「OK」後，執行：
      ```bash
      python3 ~/.gemini/config/skills/steam-community-docs/scripts/send_gmail.py --dir "./<MMDD>"
      ```
-   - 若環境設定了 SMTP 帳密，將自動背景發送；若尚未設定，腳本將自動開啟瀏覽器 Gmail 撰寫視窗並填入收件人、主旨與內文，同時彈出資料夾以利快速拖曳附件寄出。
+   - **登入與寄送機制**：
+     - 腳本鎖定專用帳號 `asc103138@st.tc.edu.tw`，自動開啟瀏覽器 Gmail 撰寫視窗（預填收件人、主旨、內文）並彈出成果檔案資料夾。
+     - 若瀏覽器尚未登入 `asc103138@st.tc.edu.tw`，請使用者先於瀏覽器完成登入，再拖曳附件寄件。
+     - 若本機設定了該帳號之 SMTP 應用程式密碼，亦支援全自動背景發送。
 
 ---
 

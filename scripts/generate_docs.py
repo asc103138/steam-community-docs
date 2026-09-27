@@ -749,6 +749,7 @@ def main():
 
     print("\n" + "=" * 65)
     print("📧 【成果繳交信件預覽】")
+    print(f"寄件者：asc103138@st.tc.edu.tw (規定專用帳號)")
     print(f"收件者：tc.steam114@gmail.com")
     print(f"主旨  ：{email_subject}")
     print(f"附件  ：{email_attachments}")
@@ -758,7 +759,7 @@ def main():
 
     if args.send_email or args.open_email:
         send_script = os.path.join(SCRIPT_DIR, 'send_gmail.py')
-        cmd = [sys.executable, send_script, '--dir', out_dir, '--date', f"{roc_year}.{month}.{day}"]
+        cmd = [sys.executable, send_script, '--dir', out_dir, '--date', f"{roc_year}.{month}.{day}", '--sender', 'asc103138@st.tc.edu.tw']
         if args.open_email:
             cmd.append('--open-web')
         subprocess.run(cmd)

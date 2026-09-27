@@ -27,13 +27,14 @@ CONFIG_PATHS = [
     os.path.expanduser('~/.gemini/config/gmail_config.json')
 ]
 
+REQUIRED_SENDER = "asc103138@st.tc.edu.tw"
 DEFAULT_RECIPIENT = "tc.steam114@gmail.com"
 
 def get_gmail_config():
     # 1. Environment variables
-    sender = os.environ.get('GMAIL_SENDER')
+    sender = os.environ.get('GMAIL_SENDER', REQUIRED_SENDER)
     app_pwd = os.environ.get('GMAIL_APP_PASSWORD')
-    if sender and app_pwd:
+    if app_pwd:
         return {'sender': sender, 'app_password': app_pwd}
     
     # 2. Config files
@@ -42,11 +43,13 @@ def get_gmail_config():
             try:
                 with open(path, 'r', encoding='utf-8') as f:
                     cfg = json.load(f)
-                    if cfg.get('sender') and cfg.get('app_password'):
-                        return cfg
+                    s = cfg.get('sender', REQUIRED_SENDER)
+                    p = cfg.get('app_password')
+                    if p:
+                        return {'sender': s, 'app_password': p}
             except:
                 pass
-    return None
+    return {'sender': REQUIRED_SENDER, 'app_password': None}
 
 def build_email_content(roc_year, month, day, activity_name=""):
     date_str = f"{roc_year}年{month}月{day}日"
@@ -120,9 +123,11 @@ def send_via_smtp(sender, app_password, recipient, subject, body, attachment_pat
     server.quit()
     return True
 
-def open_gmail_web(recipient, subject, body, open_dir=None):
+def open_gmail_web(recipient, subject, body, open_dir=None, auth_user=REQUIRED_SENDER):
     """
     Opens Gmail Compose web page in default browser with pre-filled To/Subject/Body.
+    Locks authuser to the required sender (asc103138@st.tc.edu.tw).
+    If user is not logged in to this account, Google will prompt login for this specific account.
     Cross-platform support for macOS, Windows 11/10, and Linux.
     """
     import webbrowser
@@ -130,7 +135,12 @@ def open_gmail_web(recipient, subject, body, open_dir=None):
     encoded_su = urllib.parse.quote(subject)
     encoded_body = urllib.parse.quote(body)
     
-    url = f"https://mail.google.com/mail/?view=cm&fs=1&to={encoded_to}&su={encoded_su}&body={encoded_body}"
+    if auth_user:
+        encoded_user = urllib.parse.quote(auth_user)
+        url = f"https://mail.google.com/mail/u/{encoded_user}/?view=cm&fs=1&to={encoded_to}&su={encoded_su}&body={encoded_body}"
+    else:
+        url = f"https://mail.google.com/mail/?view=cm&fs=1&to={encoded_to}&su={encoded_su}&body={encoded_body}"
+    
     webbrowser.open(url)
     
     if open_dir and os.path.exists(open_dir):
@@ -154,7 +164,7 @@ if __name__ == '__main__':
     parser.add_argument('--date', help="活動日期 (如 115.08.10 或 0810)")
     parser.add_argument('--to', default=DEFAULT_RECIPIENT, help="收件者信箱")
     parser.add_argument('--open-web', action='store_true', help="直接開啟瀏覽器 Gmail 撰寫頁面")
-    parser.add_argument('--sender', help="寄件者 Gmail")
+    parser.add_argument('--sender', default=REQUIRED_SENDER, help=f"寄件者帳號 (規定為 {REQUIRED_SENDER})")
     parser.add_argument('--password', help="Gmail 應用程式密碼")
 
     args = parser.parse_args()
@@ -179,7 +189,17 @@ if __name__ == '__main__':
     subject, body = build_email_content(roc_y, m, d)
     attachments = find_submission_attachments(args.dir)
 
+    cfg = get_gmail_config()
+    sender = args.sender or (cfg.get('sender') if cfg else REQUIRED_SENDER) or REQUIRED_SENDER
+    app_pwd = args.password or (cfg.get('app_password') if cfg else None)
+
+    # 嚴格確保使用指定之教育局帳號
+    if sender != REQUIRED_SENDER:
+        print(f"⚠️ 寄件者必須為規定帳號：{REQUIRED_SENDER}，系統已自動切換。")
+        sender = REQUIRED_SENDER
+
     print("\n================ 信件內容預覽 ================")
+    print(f"寄件者：{sender} (規定專用帳號)")
     print(f"收件者：{args.to}")
     print(f"主旨  ：{subject}")
     print(f"附件  ：{[os.path.basename(a) for a in attachments]}")
@@ -187,19 +207,24 @@ if __name__ == '__main__':
     print(body)
     print("==============================================\n")
 
-    cfg = get_gmail_config()
-    sender = args.sender or (cfg.get('sender') if cfg else None)
-    app_pwd = args.password or (cfg.get('app_password') if cfg else None)
-
-    if args.open_web or not (sender and app_pwd):
-        print("💡 正在為您開啟瀏覽器 Gmail 撰寫視窗與活動資料夾...")
-        open_gmail_web(args.to, subject, body, args.dir)
-        print("✅ 已開啟 Gmail 撰寫視窗與檔案資料夾，請將附件拖曳入視窗後發送！")
+    if args.open_web or not app_pwd:
+        print(f"💡 寄件條件：必須使用【{REQUIRED_SENDER}】帳號寄出。")
+        if not app_pwd:
+            print("🔑 未偵測到本機 SMTP 應用程式密碼，依規定開啟瀏覽器供登入及發信。")
+        print(f"🌐 正在為您開啟瀏覽器 Gmail 撰寫視窗（鎖定帳號：{REQUIRED_SENDER}）與活動資料夾...")
+        open_gmail_web(args.to, subject, body, args.dir, auth_user=REQUIRED_SENDER)
+        print("\n" + "=" * 65)
+        print("📌 登入與發信提示：")
+        print(f"1. 請在瀏覽器中確認已登入【{REQUIRED_SENDER}】帳號。若尚未登入，請依畫面完成登入。")
+        print("2. 系統已自動開啟檔案資料夾，請將附件拖曳至 Gmail 撰寫視窗。")
+        print("3. 確認附件與內文無誤後，於瀏覽器中點擊「傳送」完成寄件！")
+        print("=" * 65)
     else:
-        print(f"📨 正在透過 SMTP 發送信件至 {args.to}...")
+        print(f"📨 正在透過 SMTP（寄件帳號：{sender}）發送信件至 {args.to}...")
         try:
             send_via_smtp(sender, app_pwd, args.to, subject, body, attachments)
             print("🎉 信件發送成功！")
         except Exception as e:
-            print(f"❌ SMTP 發送失敗 ({e})，切換為開啟瀏覽器 Gmail 視窗...")
-            open_gmail_web(args.to, subject, body, args.dir)
+            print(f"❌ SMTP 發送失敗 ({e})，切換為開啟瀏覽器 Gmail 視窗以【{REQUIRED_SENDER}】寄送...")
+            open_gmail_web(args.to, subject, body, args.dir, auth_user=REQUIRED_SENDER)
+            print(f"請在瀏覽器確認登入【{REQUIRED_SENDER}】後完成寄送。")
