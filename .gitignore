@@ -22,6 +22,7 @@ ENV/
 *.PNG
 *.png
 !references/**/*.png
+!references/**/*.jpg
 
 # Large scans & generated activity folders
 簽 名 後 紙 本 申 請 表.pdf
