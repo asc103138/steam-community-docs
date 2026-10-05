@@ -80,16 +80,16 @@ def find_submission_attachments(target_dir):
     files = os.listdir(target_dir)
     
     # 1. 成果表
-    pdf_cg = [os.path.join(target_dir, f) for f in files if '成果' in f and f.endswith('.pdf')]
-    docx_cg = [os.path.join(target_dir, f) for f in files if '成果' in f and f.endswith('.docx')]
+    pdf_cg = [os.path.join(target_dir, f) for f in files if '成果' in f and '領據' not in f and f.endswith('.pdf')]
+    docx_cg = [os.path.join(target_dir, f) for f in files if '成果' in f and '領據' not in f and f.endswith('.docx')]
     if pdf_cg:
         attachments.append(pdf_cg[0])
     elif docx_cg:
         attachments.append(docx_cg[0])
 
     # 2. 簽到表
-    pdf_qd = [os.path.join(target_dir, f) for f in files if '簽到' in f and f.endswith('.pdf')]
-    docx_qd = [os.path.join(target_dir, f) for f in files if '簽到' in f and f.endswith('.docx')]
+    pdf_qd = [os.path.join(target_dir, f) for f in files if '簽到' in f and '領據' not in f and f.endswith('.pdf')]
+    docx_qd = [os.path.join(target_dir, f) for f in files if '簽到' in f and '領據' not in f and f.endswith('.docx')]
     if pdf_qd:
         attachments.append(pdf_qd[0])
     elif docx_qd:
